@@ -1,9 +1,10 @@
-# hard nms
+# soft nms
 import numpy as np
 import cv2
 
 
-def hard_nms(boxes, scores, score_thresh=0.1, iou_thresh=0.3, max_detections=200):
+def soft_nms(boxes, scores, score_thresh=0.1, iou_thresh=0.3, max_detections=200,
+             sigma=0.3, method='gaussian'):
     # boxes: [N,4], x1y1x2y2
     # scores: [N,1]
 
@@ -28,6 +29,17 @@ def hard_nms(boxes, scores, score_thresh=0.1, iou_thresh=0.3, max_detections=200
             break
         indices = indices[1:]
         current_iou = iou[current][indices]
+        current_score = scores[indices].reshape(-1)
+        # rescore
+        if method=='gaussian':
+            current_score = current_score * np.exp(-current_iou/sigma)
+        else:    # 'linear'
+            current_score = np.where(current_score>iou_thresh, current_score*(1-current_iou), current_score)
+        scores[indices] = current_score.reshape(-1,1)
+        # resort
+        in_indices = np.argsort(current_score)[::-1]
+        indices = indices[in_indices]
+        # filter
         indices = indices[current_iou<iou_thresh]
     picked = np.stack(picked, axis=-1)
 
@@ -63,7 +75,7 @@ if __name__ == '__main__':
                        [27,11,55,23,0.8],
                        [33,9,44,26,0.6],
                        [80,88,100,122,0.9]])
-    box, score = hard_nms(bboxes[...,:4], bboxes[...,-1:], iou_thresh=0.3, score_thresh=0.5)
+    box, score = soft_nms(bboxes[...,:4], bboxes[...,-1:], iou_thresh=0.3, score_thresh=0.5)
 
     print("result: ")
     print(box)

@@ -1,9 +1,9 @@
-# hard nms
+# diou nms
 import numpy as np
 import cv2
 
 
-def hard_nms(boxes, scores, score_thresh=0.1, iou_thresh=0.3, max_detections=200):
+def diou_nms(boxes, scores, score_thresh=0.1, iou_thresh=0.3, max_detections=200):
     # boxes: [N,4], x1y1x2y2
     # scores: [N,1]
 
@@ -17,7 +17,7 @@ def hard_nms(boxes, scores, score_thresh=0.1, iou_thresh=0.3, max_detections=200
     indices = indices[:max_detections]
 
     # cal_iou
-    iou = cal_iou(boxes[...,:4], boxes[...,:4])     # (N2,N1)
+    iou = cal_diou(boxes[...,:4], boxes[...,:4])     # (N2,N1)
 
     # tranverse each high score box
     picked = []
@@ -34,7 +34,7 @@ def hard_nms(boxes, scores, score_thresh=0.1, iou_thresh=0.3, max_detections=200
     return boxes[picked], scores[picked]
 
 
-def cal_iou(boxes1, boxes2, epsilon=1e-5):
+def cal_diou(boxes1, boxes2, epsilon=1e-5):
     # boxes1: [N1,4], x1y1x2y2
     # boxes2: [N2,4], x1y1x2y2
 
@@ -53,7 +53,17 @@ def cal_iou(boxes1, boxes2, epsilon=1e-5):
 
     iou = inter_area / (box_area1 + box_area2 - inter_area + epsilon)
 
-    return iou
+    # center dis
+    center1 = 0.5 * (boxes1[...,:2] + boxes1[...,2:])
+    center2 = 0.5 * (boxes2[...,:2] + boxes2[...,2:])
+    d = np.sum(np.square(center1 - center2), axis=-1)
+
+    # circumscribed dis
+    circum_mines = np.minimum(boxes1[...,:2], boxes2[...,:2])
+    circum_maxes = np.maximum(boxes1[...,2:], boxes2[...,2:])
+    c = np.sum(np.square(circum_maxes - circum_mines), axis=-1)
+
+    return iou - np.square(d/c)
 
 
 if __name__ == '__main__':
@@ -63,7 +73,7 @@ if __name__ == '__main__':
                        [27,11,55,23,0.8],
                        [33,9,44,26,0.6],
                        [80,88,100,122,0.9]])
-    box, score = hard_nms(bboxes[...,:4], bboxes[...,-1:], iou_thresh=0.3, score_thresh=0.5)
+    box, score = diou_nms(bboxes[...,:4], bboxes[...,-1:], iou_thresh=0.3, score_thresh=0.5)
 
     print("result: ")
     print(box)

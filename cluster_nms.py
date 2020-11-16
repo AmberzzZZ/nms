@@ -1,9 +1,9 @@
-# hard nms
+# cluster nms
 import numpy as np
 import cv2
 
 
-def hard_nms(boxes, scores, score_thresh=0.1, iou_thresh=0.3, max_detections=200):
+def cluster_nms(boxes, scores, score_thresh=0.1, iou_thresh=0.3, max_detections=200):
     # boxes: [N,4], x1y1x2y2
     # scores: [N,1]
 
@@ -15,21 +15,26 @@ def hard_nms(boxes, scores, score_thresh=0.1, iou_thresh=0.3, max_detections=200
     # sort decending
     indices = np.argsort(scores, axis=0)[::-1,0]
     indices = indices[:max_detections]
+    boxes = boxes[indices]
+    scores = scores[indices]
 
     # cal_iou
     iou = cal_iou(boxes[...,:4], boxes[...,:4])     # (N2,N1)
 
-    # tranverse each high score box
-    picked = []
-    while indices.shape[0]:
-        current = indices[0]
-        picked.append(current)
-        if indices.shape[0]==1:
+    # triu
+    iou = np.triu(iou, k=1)
+
+    # recursive
+    C = iou         # initial
+    for i in range(200):
+        bkp_C = C
+        b = np.max(C, axis=0)
+        E = np.diag(b<iou_thresh).astype(np.float32)
+        C = np.dot(E,iou)
+        if np.array_equal(bkp_C, C):
             break
-        indices = indices[1:]
-        current_iou = iou[current][indices]
-        indices = indices[current_iou<iou_thresh]
-    picked = np.stack(picked, axis=-1)
+
+    picked = np.where(b<iou_thresh)
 
     return boxes[picked], scores[picked]
 
@@ -63,7 +68,7 @@ if __name__ == '__main__':
                        [27,11,55,23,0.8],
                        [33,9,44,26,0.6],
                        [80,88,100,122,0.9]])
-    box, score = hard_nms(bboxes[...,:4], bboxes[...,-1:], iou_thresh=0.3, score_thresh=0.5)
+    box, score = cluster_nms(bboxes[...,:4], bboxes[...,-1:], iou_thresh=0.5, score_thresh=0.5)
 
     print("result: ")
     print(box)
@@ -84,11 +89,4 @@ if __name__ == '__main__':
     #     cv2.rectangle(canvas, (int(b[0]),int(b[1])), (int(b[2]),int(b[3])), 255, 1)
     # cv2.imshow("after nms", canvas)
     # cv2.waitKey(0)
-
-
-
-
-
-
-
 
