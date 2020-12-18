@@ -3,9 +3,13 @@ import numpy as np
 import cv2
 
 
-def fast_nms(boxes, scores, score_thresh=0.1, iou_thresh=0.3, max_detections=200):
+def fast_nms(boxes, scores, labels, score_thresh=0.1, iou_thresh=0.3, max_detections=200):
+    boxes = boxes.copy()
+    scores = scores.copy()
+    labels = labels.copy()
     # boxes: [N,4], x1y1x2y2
     # scores: [N,1]
+    # labels: [N,1]
 
     # score filter
     valid_indices = np.where(scores>score_thresh)[0]
@@ -28,10 +32,12 @@ def fast_nms(boxes, scores, score_thresh=0.1, iou_thresh=0.3, max_detections=200
     picked = np.max(iou, axis=0)    # (N1,)
     picked = np.where(picked<iou_thresh)
 
-    return boxes[picked], scores[picked]
+    return boxes[picked], scores[picked], labels[picked]
 
 
 def cal_iou(boxes1, boxes2, epsilon=1e-5):
+    boxes1 = boxes1.copy()
+    boxes2 = boxes2.copy()
     # boxes1: [N1,4], x1y1x2y2
     # boxes2: [N2,4], x1y1x2y2
 
@@ -60,7 +66,8 @@ if __name__ == '__main__':
                        [27,11,55,23,0.8],
                        [33,9,44,26,0.6],
                        [80,88,100,122,0.9]])
-    box, score = fast_nms(bboxes[...,:4], bboxes[...,-1:], iou_thresh=0.3, score_thresh=0.5)
+    box, score, _ = fast_nms(bboxes[...,:4], bboxes[...,-1:], bboxes[...,-1:],
+                             iou_thresh=0.3, score_thresh=0.5)
 
     print("result: ")
     print(box)

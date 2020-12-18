@@ -3,10 +3,14 @@ import numpy as np
 import cv2
 
 
-def matrix_nms(masks, scores, score_thresh=0.1, iou_thresh=0.3, max_detections=200,
+def matrix_nms(masks, scores, labels, score_thresh=0.1, iou_thresh=0.3, max_detections=200,
                sigma=0.5, method='gaussian'):
+    masks = masks.copy()
+    scores = scores.copy()
+    labels = labels.copy()
     # masks: [N,h,w]
     # scores: [N,1]
+    # labels: [N,1]
 
     # score filter
     valid_indices = np.where(scores>score_thresh)[0]
@@ -42,10 +46,12 @@ def matrix_nms(masks, scores, score_thresh=0.1, iou_thresh=0.3, max_detections=2
     # thresh filter
     picked = np.where(scores>score_thresh)
 
-    return masks[picked[0]], scores[picked]
+    return masks[picked[0]], scores[picked], labels[picked]
 
 
 def cal_miou(mask1, mask2, epsilon=1e-5):
+    mask1 = mask1.copy()
+    mask2 = mask2.copy()
     # mask1: [N1,h,w]
     # mask2: [N2,h,w]
 
@@ -94,7 +100,7 @@ if __name__ == '__main__':
     masks = np.stack([mask1, mask2, mask3, mask4], axis=0)
     scores = np.array([0.9, 0.6, 0.8, 0.95]).reshape((-1,1))
 
-    mask, score = matrix_nms(masks, scores, iou_thresh=0.3, score_thresh=0.5)
+    mask, score, _ = matrix_nms(masks, scores, scores, iou_thresh=0.3, score_thresh=0.5)
 
     print("result: ")
     print(score)
